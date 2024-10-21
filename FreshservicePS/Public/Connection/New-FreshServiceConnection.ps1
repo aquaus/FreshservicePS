@@ -71,7 +71,7 @@
     Environment  : Sandbox
     Default      : False
 
-    Create a Freshservice connection configuration for a Sandbox environment.  Use Connect-Freshservice to switch connections from Prod to Sandbox (e.g. Connect-FS -Name acme vs Connect-FS -Name acme_sbx).
+    Create a Freshservice connection configuration for a Sandbox environment.  Use # to switch connections from Prod to Sandbox (e.g. Connect-FS -Name acme vs Connect-FS -Name acme_sbx).
 
 .NOTES
     This module was developed and tested with Freshservice REST API v2.
@@ -90,6 +90,21 @@ function New-FreshServiceConnection {
             HelpMessage = 'The users API Key for the Freshservice instance.'
         )]
         [string]$ApiKey,
+        [Parameter(
+            Mandatory = $true,
+            HelpMessage = 'Azure KeyVault Name Example: MyCompanyAppKeyVault.'
+        )]
+        [string]$AzKeyVaultName,
+        [Parameter(
+            Mandatory = $true,
+            HelpMessage = 'Azure KeyVault Resource Group.'
+        )]
+        [string]$ResourceGroupName,
+        [Parameter(
+            Mandatory = $false,
+            HelpMessage = 'Azure KeyVault Secret  Example: MyAppSecret.'
+        )]
+        [string]$AzSecret,
         [Parameter(
             Mandatory = $true,
             HelpMessage = 'Tenant name. For example https://acmecorp.freshservice.com would be tenant "acmecorp".'
@@ -121,6 +136,26 @@ function New-FreshServiceConnection {
             'Sandbox'    =  ('https://{0}-fs-sandbox.freshservice.com/api/v2' -f $Tenant )
         }
 
+        Write-Host "Azure KeyVault Detected"
+
+        $AzKeyVault = Get-AzKeyVault -Name $AzKeyVaultName -ResourceGroupName $ResourceGroupName
+
+        Write-Host $AzKeyVault.Name
+
+        If ($AzSecret -ne '') {
+            $KeyVaultSecretName = $AzSecret
+
+            $AzKeyVaultSecret = Get-AzKeyVaultSecret -Name $KeyVaultSecretName -VaultName $AzKeyVaultName -AsPlainText
+        } Else {
+            $KeyVaultSecretName = "FreshServicePSModule-{0}-{1}" -f $Tenant, $($(New-guid).guid -replace '-')
+
+            $AzKeyVaultSecret = Set-AzKeyVaultSecret -Name $KeyVaultSecretName -VaultName $AzKeyVaultName -SecretValue $($ApiKey | ConvertTo-SecureString -AsPlainText -Force)
+        }
+
+        Write-Host $AzKeyVaultSecret.Name
+
+        $AzKeyVaultSecretName = $AzKeyVaultSecret.Name
+
     }
     process {
         if (!$PSBoundParameters['Name']) {$PSBoundParameters['Name'] = $PSBoundParameters['Tenant']}
@@ -129,15 +164,34 @@ function New-FreshServiceConnection {
         try {
             $environments = @()
 
-            $newEnvironment = [PSCustomObject]@{
-                Name         = $PSBoundParameters['Name']
-                ApiKey       = ($PSBoundParameters['ApiKey'] | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString)
-                Tenant       = $PSBoundParameters['Tenant']
-                BaseUri      = $environmentLookup[$Environment]
-                EmailAddress = $PSBoundParameters['EmailAddress']
-                Environment  = $Environment
-                Default      = if ($PSBoundParameters.ContainsKey('Default')) {$true} else {$false}
+            If ($AzKeyVault -ne $null -and $AzKeyVault -ne '') {
+
+                $newEnvironment = [PSCustomObject]@{
+                    Name         = $PSBoundParameters['Name']
+                    ApiKey       = ''
+                    Tenant       = $PSBoundParameters['Tenant']
+                    BaseUri      = $environmentLookup[$Environment]
+                    EmailAddress = $PSBoundParameters['EmailAddress']
+                    Environment  = $Environment
+                    Default      = if ($PSBoundParameters.ContainsKey('Default')) {$true} else {$false}
+                    ResourceGroupName = $PSBoundParameters['ResourceGroupName']
+                    AzKeyVault = $AzKeyVaultName
+                    AzSecret = $KeyVaultSecretName
+                }
+            } Else {
+                $newEnvironment = [PSCustomObject]@{
+                    Name         = $PSBoundParameters['Name']
+                    ApiKey       = ($PSBoundParameters['ApiKey'] | ConvertTo-SecureString -AsPlainText -Force)
+                    Tenant       = $PSBoundParameters['Tenant']
+                    BaseUri      = $environmentLookup[$Environment]
+                    EmailAddress = $PSBoundParameters['EmailAddress']
+                    Environment  = $Environment
+                    Default      = if ($PSBoundParameters.ContainsKey('Default')) {$true} else {$false}
+                    AzKeyVault = ''
+                    AzSecret = ''
+                }
             }
+
 
             if ($PSCmdlet.ShouldProcess($PSBoundParameters['Name'])) {
                 if ( Test-Path -Path $FreshServiceConfigPath ) {
