@@ -51,6 +51,8 @@
 
 .NOTES
     This module was developed and tested with Freshservice REST API v2.
+
+
 #>
 function Get-FreshServiceConnection {
     [CmdletBinding()]
@@ -93,7 +95,17 @@ function Get-FreshServiceConnection {
                 }
                 else {
                     If ($Decrypt) {
-                        $ApiKey = [Net.NetworkCredential]::new('',$($results.ApiKey | ConvertTo-SecureString)).password
+                        If ($environment.AzKeyVault -ne '' -and $environment.AzKeyVault -ne $null) {
+                            $AzKeyVaultName = $environment.AzKeyVault
+                            $KeyVaultSecretName = $environment.AzSecret
+
+                            $AzKeyVaultSecret = Get-AzKeyVaultSecret -Name $KeyVaultSecretName -VaultName $AzKeyVaultName
+
+                            $ApiKey = [Net.NetworkCredential]::new('',$($AzKeyVaultSecret.SecretValue)).password
+                        } Else {
+                            $ApiKey = [Net.NetworkCredential]::new('',$($environment.ApiKey | ConvertTo-SecureString)).password
+                        }
+
                         Write-Verbose ('Decrypted API Key: {0}' -f $ApiKey)
                         $results.'ApiKey' = $APIKey
                     }
