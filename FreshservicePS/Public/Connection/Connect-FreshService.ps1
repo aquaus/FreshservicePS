@@ -38,12 +38,14 @@
 
 .NOTES
     This module was developed and tested with Freshservice REST API v2.
+
+
 #>
 function Connect-Freshservice {
     [CmdletBinding()]
     param (
         [Parameter(
-            Mandatory = $true,
+            Mandatory = $false,
             HelpMessage = 'Friendly name of the environment'
         )]
         [ArgumentCompleter({
@@ -80,7 +82,16 @@ function Connect-Freshservice {
             $environment = Get-FreshServiceConnection -Name $Name
             Write-Verbose -Message ('Using configuration {0} to set module variables for {1} with api key {2}' -f $Name, $environment.Tenant, $plainPass)
 
-            $ApiKey = [Net.NetworkCredential]::new('',$($environment.ApiKey | ConvertTo-SecureString)).password
+            If ($environment.AzKeyVault -ne '' -and $environment.AzKeyVault -ne $null) {
+                $AzKeyVaultName = $environment.AzKeyVault
+                $KeyVaultSecretName = $environment.AzSecret
+
+                $AzKeyVaultSecret = Get-AzKeyVaultSecret -Name $KeyVaultSecretName -VaultName $AzKeyVaultName
+
+                $ApiKey = [Net.NetworkCredential]::new('',$($AzKeyVaultSecret.SecretValue)).password
+            } Else {
+                $ApiKey = [Net.NetworkCredential]::new('',$($environment.ApiKey | ConvertTo-SecureString)).password
+            }
 
             $PrivateData.FreshserviceTenant     = $environment.Tenant;
             $PrivateData.FreshserviceApiToken   = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $ApiKey,'X')))
@@ -122,7 +133,18 @@ Twitter: https://twitter.com/Flycast_
 Thank you to everyone for your support! Happy coding!
 "@
 
+$aboutAzureERS = @"
+This module was forked from the original one created by Flycast Partners. This version of the module has more flexibility added to it with the addition of Azure Keyvaults to store the API tokens.
+This work was completed to add additional flexibility on Managed Identity based systems to resolve an issue with the original module being restricted to run under only one account / configuration due to
+how it was encrypting the apikey.
+
+Email: eschlueter@lincolnpremiumpoultry.com
+
+Thank you to everyone for your support! Happy coding!
+"@
             Write-Warning -Message $aboutFlyCast
+
+            Write-Warning -Message $aboutAzureERS
         }
     }
 }
