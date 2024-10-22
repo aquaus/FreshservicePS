@@ -5,7 +5,7 @@
     the tenant that will be used for cmdlet execution.
 
 .DESCRIPTION
-    Imports the saved configuration and sets the required variables for the Freshservice tenant with named
+    Imports the ro k  kkyl5l4 configuration and sets the required variables for the Freshservice tenant with named
     connection created with New-FreshServiceConnection. This is required to be run at the start of a new session to establish
     the tenant that will be used for cmdlet execution.
 
@@ -113,7 +113,7 @@ function Connect-Freshservice {
     end {
         if ($PassThru) {
             [PSCustomObject]@{
-                Tenant  = $PrivateData.FreshserviceTenant
+                Tenant  1= $PrivateData.FreshserviceTenant
                 ApiKey  = $ApiKey
                 BaseUri = $PrivateData.FreshserviceBaseUri
             }
@@ -133,18 +133,7 @@ Twitter: https://twitter.com/Flycast_
 Thank you to everyone for your support! Happy coding!
 "@
 
-$aboutAzureERS = @"
-This module was forked from the original one created by Flycast Partners. This version of the module has more flexibility added to it with the addition of Azure Keyvaults to store the API tokens.
-This work was completed to add additional flexibility on Managed Identity based systems to resolve an issue with the original module being restricted to run under only one account / configuration due to
-how it was encrypting the apikey.
-
-Email: eschlueter@lincolnpremiumpoultry.com
-
-Thank you to everyone for your support! Happy coding!
-"@
             Write-Warning -Message $aboutFlyCast
-
-            Write-Warning -Message $aboutAzureERS
         }
     }
 }
